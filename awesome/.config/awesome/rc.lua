@@ -31,11 +31,12 @@ local hotkeys_popup = require("awful.hotkeys_popup")
 require("awful.hotkeys_popup.keys")
 
 -- Load Debian menu entries
-local debian = require("debian.menu")
+-- local debian = require("debian.menu")
 local has_fdo, freedesktop = pcall(require, "freedesktop")
 
 -- == Start Up Sourcing ==
 awful.spawn.with_shell("~/.config/awesome/autorun.sh")
+awful.spawn.with_shell("~/.config/polybar/launch_polybar.sh")
 -- {{{ Error handling
 -- Check if awesome encountered an error during startup and fell back to
 -- another config (This code will only ever execute for the fallback config)
@@ -85,8 +86,8 @@ modkey = "Mod4"
 
 -- Table of layouts to cover with awful.layout.inc, order matters.
 awful.layout.layouts = {
-	awful.layout.suit.floating,
-	-- awful.layout.suit.tile,
+-- 	awful.layout.suit.floating,
+	awful.layout.suit.tile,
 }
 -- }}}
 
@@ -94,40 +95,51 @@ awful.layout.layouts = {
 -- Create a launcher widget and a main menu
 myawesomemenu = {
 	{
-		"hotkeys",
+		"Hotkeys",
 		function()
 			hotkeys_popup.show_help(nil, awful.screen.focused())
 		end,
 	},
-	{ "manual", terminal .. " -e man awesome" },
-	{ "edit config", editor_cmd .. " " .. awesome.conffile },
-	{ "restart", awesome.restart },
+	{ "Manual", terminal .. " -e man awesome" },
+	{ "Edit config", editor_cmd .. " " .. awesome.conffile },
+	{ "Restart", awesome.restart },
 	{
-		"quit",
+		"Quit",
 		function()
 			awesome.quit()
 		end,
 	},
 }
 
-local menu_awesome = { "awesome", myawesomemenu, beautiful.awesome_icon }
-local menu_terminal = { "open terminal", terminal }
+-- local menu_awesome = { "awesome", myawesomemenu, beautiful.awesome_icon }
+-- local menu_terminal = { "open terminal", terminal }
 
-if has_fdo then
-	mymainmenu = freedesktop.menu.build({
-		before = { menu_awesome },
-		after = { menu_terminal },
-	})
-else
-	mymainmenu = awful.menu({
-		items = {
-			menu_awesome,
-			{ "Debian", debian.menu.Debian_menu.Debian },
-			menu_terminal,
-		},
-	})
-end
+-- mymainmenu = freedesktop.menu.build({
+--		before = { menu_awesome },
+--		after = { menu_terminal },
+--})
 
+-- {{{ Menu
+-- Create a launcher widget and a main menu
+myawesomemenu = {
+   { "     Hotkeys", beautiful, function() hotkeys_popup.show_help(nil, awful.screen.focused()) end },
+   { "     Manual", terminal .. " -e man awesome" },
+   { "     Edit Config", editor_cmd .. " " .. awesome.conffile },
+   { "     Restart", awesome.restart },
+   { "     Quit", function() awesome.quit() end },
+}
+beautiful.menu_height=20
+beautiful.menu_width=180
+
+mymainmenu = awful.menu({ items = { { "    Awesome", myawesomemenu },
+                                    { "    Open Terminal", terminal },
+                                    { "    Browser", "google-chrome-stable" },
+                                    { "    Files", "thunar" }
+                                  }
+                        })
+
+mylauncher = awful.widget.launcher({ image = beautiful.awesome_icon,
+                                     menu = mymainmenu })
 mylauncher = awful.widget.launcher({ image = beautiful.awesome_icon, menu = mymainmenu })
 
 -- Menubar configuration
@@ -207,7 +219,7 @@ awful.screen.connect_for_each_screen(function(s)
 	-- awful.tag({ "1", "2", "3", "4", "5" }, s, awful.layout.layouts[1])
   local names={"Main", "WWW", "Office", "Util 1", "Util 2"}
   local l = awful.layout.suit
-  local layouts = {l.tile, l.floating, l.floating, l.floating, l.floating}
+  local layouts = {l.tile, l.tile, l.tile, l.tile, l.tile}
   awful.tag(names,s,layouts)
 
 	-- Create a promptbox for each screen
@@ -244,27 +256,27 @@ awful.screen.connect_for_each_screen(function(s)
 	})
 
 	-- Create the wibox
-	s.mywibox = awful.wibar({ position = "top", screen = s })
+--	s.mywibox = awful.wibar({ position = "top", screen = s })
 
 	-- Add widgets to the wibox
-	s.mywibox:setup({
-		layout = wibox.layout.align.horizontal,
-		{ -- Left widgets
-			layout = wibox.layout.fixed.horizontal,
-			mylauncher,
-			s.mytaglist,
-			s.mypromptbox,
-		},
-		s.mytasklist, -- Middle widget
-		{ -- Right widgets
-			layout = wibox.layout.fixed.horizontal,
-			mykeyboardlayout,
-			wibox.widget.systray(),
-			mytextclock,
-			s.mylayoutbox,
-		},
-	})
-end)
+	--s.mywibox:setup({
+	--	layout = wibox.layout.align.horizontal,
+	--	{ -- Left widgets
+	--		layout = wibox.layout.fixed.horizontal,
+	--		mylauncher,
+	--		s.mytaglist,
+	--		s.mypromptbox,
+	--	},
+	--	s.mytasklist, -- Middle widget
+	--	{ -- Right widgets
+	--		layout = wibox.layout.fixed.horizontal,
+	--		mykeyboardlayout,
+	--		wibox.widget.systray(),
+	--		mytextclock,
+	--		s.mylayoutbox,
+	--	},
+--	})
+ end)
 -- }}}
 
 -- {{{ Mouse bindings
@@ -364,7 +376,7 @@ globalkeys = gears.table.join(
 		awful.spawn("rofi -show")
 	end, { description = "Rofi", group = "launcher" }),
 	awful.key({ modkey }, "b", function()
-		awful.util.spawn("google-chrome")
+		awful.util.spawn("google-chrome-stable")
 	end, { description = "Open a browser", group = "launcher" }),
 	--	awful.key({ modkey }, "Return", function()
 	--		awful.prompt.run({
@@ -548,7 +560,7 @@ awful.rules.rules = {
 	},
 
 	-- Add titlebars to normal clients and dialogs
-	{ rule_any = { type = { "normal", "dialog" } }, properties = { titlebars_enabled = true } },
+	-- { rule_any = { type = { "normal", "dialog" } }, properties = { titlebars_enabled = true } },
 
 	-- Set Firefox to always map on the tag named "2" on screen 1.
 	-- { rule = { class = "Firefox" },
@@ -570,50 +582,54 @@ client.connect_signal("manage", function(c)
 end)
 
 -- Add a titlebar if titlebars_enabled is set to true in the rules.
-client.connect_signal("request::titlebars", function(c)
+-- client.connect_signal("request::titlebars", function(c)
 	-- buttons for the titlebar
-	local buttons = gears.table.join(
-		awful.button({}, 1, function()
-			c:emit_signal("request::activate", "titlebar", { raise = true })
-			awful.mouse.client.move(c)
-		end),
-		awful.button({}, 3, function()
-			c:emit_signal("request::activate", "titlebar", { raise = true })
-			awful.mouse.client.resize(c)
-		end)
-	)
+--	local buttons = gears.table.join(
+--		awful.button({}, 1, function()
+--			c:emit_signal("request::activate", "titlebar", { raise = true })
+--			awful.mouse.client.move(c)
+--		end),
+--		awful.button({}, 3, function()
+--			c:emit_signal("request::activate", "titlebar", { raise = true })
+--			awful.mouse.client.resize(c)
+--		end)
+--	)
 
-	awful.titlebar(c):setup({
-		{ -- Left
-			awful.titlebar.widget.iconwidget(c),
-			buttons = buttons,
-			layout = wibox.layout.fixed.horizontal,
-		},
-		{ -- Middle
-			{ -- Title
-				align = "center",
-				widget = awful.titlebar.widget.titlewidget(c),
-			},
-			buttons = buttons,
-			layout = wibox.layout.flex.horizontal,
-		},
-		{ -- Right
-			-- awful.titlebar.widget.floatingbutton(c),
-			awful.titlebar.widget.minimizebutton(c),
-			awful.titlebar.widget.maximizedbutton(c),
-			-- awful.titlebar.widget.stickybutton(c),
-			-- awful.titlebar.widget.ontopbutton(c),
-			awful.titlebar.widget.closebutton(c),
-			layout = wibox.layout.fixed.horizontal(),
-		},
-		layout = wibox.layout.align.horizontal,
-	})
-end)
+--	awful.titlebar(c):setup({
+--		{ -- Left
+--			awful.titlebar.widget.iconwidget(c),
+--			buttons = buttons,
+--			layout = wibox.layout.fixed.horizontal,
+--		},
+--		{ -- Middle
+--			{ -- Title
+--				align = "center",
+--				widget = awful.titlebar.widget.titlewidget(c),
+--			},
+--			buttons = buttons,
+--			layout = wibox.layout.flex.horizontal,
+--		},
+--		{ -- Right
+--			-- awful.titlebar.widget.floatingbutton(c),
+--			awful.titlebar.widget.minimizebutton(c),
+--			awful.titlebar.widget.maximizedbutton(c),
+--			-- awful.titlebar.widget.stickybutton(c),
+--			-- awful.titlebar.widget.ontopbutton(c),
+--			awful.titlebar.widget.closebutton(c),
+--			layout = wibox.layout.fixed.horizontal(),
+--		},
+--		layout = wibox.layout.align.horizontal,
+--	})
+-- end)
 
 -- Enable sloppy focus, so that focus follows mouse.
 -- client.connect_signal("mouse::enter", function(c)
 --	c:emit_signal("request::activate", "mouse_enter", { raise = false })
 --end)
+
+-- Custom configuration
+beautiful.useless_gap=10
+
 
 client.connect_signal("focus", function(c)
 	c.border_color = beautiful.border_focus
@@ -627,15 +643,16 @@ end)
 autorun = true
 autorunApps = {
 	"xbacklight",
-	"compton --config " .. filesystem.get_configuration_dir() .. "/configuration/compton.conf",
-	"nm-applet --indicator", -- wifi
+	-- "compton --config " .. filesystem.get_configuration_dir() .. "/configuration/compton.conf",
+	"picom",
+  "nm-applet --indicator", -- wifi
 	"pnmixer", -- shows an audiocontrol applet in systray when installed.
 	"numlockx on", -- enable numlock
 	"/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 & eval $(gnome-keyring-daemon -s --components=pkcs11,secrets,ssh,gpg)", -- credential manager
 	"xfce4-power-manager", -- Power manager
-	"flameshot",
-	"feh --bg-scale ~/.wallpapers/stargate-wallpaper.jpg",
-}
+	-- "flameshot",
+ "feh --bg-scale ~/.wallpapers/stargate.jpg",
+ }
 
 if autorun then
 	for app = 1, #autorunApps do

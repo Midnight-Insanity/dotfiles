@@ -26,6 +26,11 @@ style = "Regular"
 [window]
 padding.x = 6
 padding.y = 6
-opacity = 0.8
-startup_mode = "Maximized"
-decorations = "Buttonless"
+# opacity = 0.8
+startup_mode = "Windowed"
+# decorations = "Buttonless"  # mac config
+
+
+[shell]
+program = "/bin/zsh"
+

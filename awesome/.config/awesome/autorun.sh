@@ -7,4 +7,5 @@ function run1x {
 
 xset s off
 xset s -dpms
-run1x xcompmgr
+# run1x xcompmgr
+# run picom
