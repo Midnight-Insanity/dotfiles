@@ -1,18 +1,16 @@
 -- If LuaRocks is installed, make sure that packages installed through it are
--- found (e.g. lgi). If LuaRocks is not installed, do nothing.
 pcall(require, "luarocks.loader")
 local filesystem = require("gears.filesystem")
-
--- Thanks to jo148 on github for making rofi dpi aware!
+-- Thanks to j0148 on github for making rofi dpi aware!
 local with_dpi = require("beautiful").xresources.apply_dpi
 local get_dpi = require("beautiful").xresources.get_dpi
 local rofi_command = "env /usr/bin/rofi -dpi "
-	.. get_dpi()
-	.. " -width "
-	.. with_dpi(400)
-	.. " -show drun -theme "
-	.. filesystem.get_configuration_dir()
-	.. "/configuration/rofi.rasi -run-command \"/bin/bash -c -i 'shopt -s expand_aliases; {cmd}'\""
+ .. get_dpi()
+ .. " -width "
+ .. with_dpi(400)
+ .. " -show drun -theme "
+ .. filesystem.get_configuration_dir()
+ .. "/configuration/rofi.rasi -run-command \"/bin/bash -c -i 'shopt -s expand_aliases; {cmd}'\"" 
 
 -- Standard awesome library
 local gears = require("gears")
@@ -26,72 +24,86 @@ local beautiful = require("beautiful")
 local naughty = require("naughty")
 local menubar = require("menubar")
 local hotkeys_popup = require("awful.hotkeys_popup")
--- Enable hotkeys help widget for VIM and other apps
--- when client with a matching name is opened:
+
 require("awful.hotkeys_popup.keys")
 
--- Load Debian menu entries
--- local debian = require("debian.menu")
 local has_fdo, freedesktop = pcall(require, "freedesktop")
 
--- == Start Up Sourcing ==
+-- ==Start Up Sourcing ==
 awful.spawn.with_shell("~/.config/awesome/autorun.sh")
-awful.spawn.with_shell("~/.config/polybar/launch_polybar.sh")
--- {{{ Error handling
--- Check if awesome encountered an error during startup and fell back to
--- another config (This code will only ever execute for the fallback config)
-if awesome.startup_errors then
-	naughty.notify({
-		preset = naughty.config.presets.critical,
-		title = "Oops, there were errors during startup!",
-		text = awesome.startup_errors,
-	})
-end
 
--- Handle runtime errors after startup
-do
-	local in_error = false
-	awesome.connect_signal("debug::error", function(err)
-		-- Make sure we don't go into an endless error loop
-		if in_error then
-			return
-		end
-		in_error = true
+RC = {} -- global namespace, on top before require any modules
+RC.vars = require("main.user-variables")
 
-		naughty.notify({
-			preset = naughty.config.presets.critical,
-			title = "Oops, an error happened!",
-			text = tostring(err),
-		})
-		in_error = false
-	end)
-end
--- }}}
+-- Error handling
+require("main.error-handling")
 
--- {{{ Variable definitions
 -- Themes define colours, icons, font and wallpapers.
-beautiful.init(gears.filesystem.get_themes_dir() .. "zenburn/theme.lua")
+beautiful.init(gears.filesystem.get_themes_dir() .. "default/theme.lua")
+beautiful.wallpaper = RC.vars.wallpaper
 
--- This is used later as the default terminal and editor to run.
 terminal = "alacritty"
 editor = os.getenv("nvim") or "nvim"
 editor_cmd = terminal .. " -e " .. editor
 
--- Default modkey.
--- Usually, Mod4 is the key with a logo between Control and Alt.
--- If you do not like this or do not have such a key,
--- I suggest you to remap Mod4 to another key using xmodmap or other tools.
--- However, you can use another modifier like Mod1, but it may interact with others.
-modkey = "Mod4"
+modkey = RC.vars.modkey
 
--- Table of layouts to cover with awful.layout.inc, order matters.
-awful.layout.layouts = {
--- 	awful.layout.suit.floating,
-	awful.layout.suit.tile,
+-- Custom Local Library
+local main = {
+	layouts = require("main.layouts"),
+-- 	tags = require("main.tags"),
+	menu = require("main.menu"),
+	rules = require("main.rules"),
 }
--- }}}
 
--- {{{ Menu
+--Notifications
+require("deco.notifications")
+
+-- Keys and Mouse Binding
+local binding = {
+	globalbuttons = require("binding.globalbuttons"),
+	clientbuttons = require("binding.clientbuttons"),
+	globalkeys = require("binding.globalkeys"),
+	bindtotags = require("binding.bindtotags"),
+	clientkeys = require("binding.clientkeys"),
+}
+
+-- Layouts
+RC.layouts = main.layouts()
+
+-- Tags
+-- RC.tags = main.tags()
+
+--  Menu
+RC.mainmenu = awful.menu({
+	items = main.menu(),
+	theme = {
+		width = 250,
+		height = 30,
+		font = "Ubuntu Nerd Font 10",
+		bg_normal = "#00000080",
+		bg_focus = "#729fcf",
+		border_width = 3,
+		border_color = "#000000",
+	},
+})
+
+-- a variable needed in statusbar (helper)
+RC.launcher = awful.widget.launcher({ image = beautiful.awesome_icon, menu = RC.mainmenu })
+-- Menubar configuration
+menubar.utils.terminal = RC.vars.terminal
+
+
+-- Mouse and Key bindings
+RC.globalkeys = binding.globalkeys()
+RC.globalkeys = binding.bindtotags(RC.globalkeys)
+
+-- Set root
+root.buttons(binding.globalbuttons())
+root.keys(RC.globalkeys)
+
+-- Keyboard map indicator and switcher
+mykeyboardlayout = awful.widget.keyboardlayout()
 -- Create a launcher widget and a main menu
 myawesomemenu = {
 	{
@@ -149,77 +161,49 @@ menubar.utils.terminal = terminal -- Set the terminal for applications that requ
 -- Keyboard map indicator and switcher
 mykeyboardlayout = awful.widget.keyboardlayout()
 
--- {{{ Wibar
--- Create a textclock widget
-mytextclock = wibox.widget.textclock()
+-- Statusbar: Wibar
+require("layout.topbar.topbar")
+-- require("layout.dock.dock")
+-- require("layout.dock.dock2")
+ require("popups.lockscreen")
+--Wallpaper
+-- require("deco.wall")
+-- gears.wallpaper.maximized("/home/amitabha/.config/awesome/Wallpapers/catMachup.jpg", s)
 
--- Create a wibox for each screen and add it
-local taglist_buttons = gears.table.join(
-	awful.button({}, 1, function(t)
-		t:view_only()
-	end),
-	awful.button({ modkey }, 1, function(t)
-		if client.focus then
-			client.focus:move_to_tag(t)
-		end
-	end),
-	awful.button({}, 3, awful.tag.viewtoggle),
-	awful.button({ modkey }, 3, function(t)
-		if client.focus then
-			client.focus:toggle_tag(t)
-		end
-	end),
-	awful.button({}, 4, function(t)
-		awful.tag.viewnext(t.screen)
-	end),
-	awful.button({}, 5, function(t)
-		awful.tag.viewprev(t.screen)
-	end)
-)
+--Popup Launcher
+-- require("popups.launcher.launcher")
+-- require("popups.launcher.launcher2")
 
-local tasklist_buttons = gears.table.join(
-	awful.button({}, 1, function(c)
-		if c == client.focus then
-			c.minimized = true
-		else
-			c:emit_signal("request::activate", "tasklist", { raise = true })
-		end
-	end),
-	awful.button({}, 3, function()
-		awful.menu.client_list({ theme = { width = 250 } })
-	end),
-	awful.button({}, 4, function()
-		awful.client.focus.byidx(1)
-	end),
-	awful.button({}, 5, function()
-		awful.client.focus.byidx(-1)
-	end)
-)
+--Osds
+require("popups.osds.volume_osd")
 
-local function set_wallpaper(s)
-	-- Wallpaper
-	if beautiful.wallpaper then
-		local wallpaper = beautiful.wallpaper
-		-- If wallpaper is a function, call it with the screen
-		if type(wallpaper) == "function" then
-			wallpaper = wallpaper(s)
-		end
-		gears.wallpaper.maximized(wallpaper, s, true)
-	end
-end
+-- Rules to apply to new clients (through the "manage" signal).
+awful.rules.rules = main.rules(binding.clientkeys(), binding.clientbuttons())
+
+-- Signals
+require("main.signals")
+
+--Link the themes directory
+beautiful.init("~/.config/awesome/themes/mytheme/theme.lua")
+
+--Gaps
+-- beautiful.useless_gap = 4
+
+--CLient borders and autofocus
+require("main.client")
 
 -- Re-set wallpaper when a screen's geometry changes (e.g. different resolution)
-screen.connect_signal("property::geometry", set_wallpaper)
+-- screen.connect_signal("property::geometry", set_wallpaper)
 
 awful.screen.connect_for_each_screen(function(s)
 	-- Wallpaper
-	set_wallpaper(s)
+--	set_wallpaper(s)
 
 	-- Each screen has its own tag table.
 	-- awful.tag({ "1", "2", "3", "4", "5" }, s, awful.layout.layouts[1])
-  local names={"Main", "WWW", "Office", "Util 1", "Util 2"}
+  local names={"Main", "WWW", "Office", "Util"}
   local l = awful.layout.suit
-  local layouts = {l.tile, l.tile, l.tile, l.tile, l.tile}
+  local layouts = {l.tile, l.tile, l.tile, l.tile}
   awful.tag(names,s,layouts)
 
 	-- Create a promptbox for each screen
@@ -628,7 +612,7 @@ end)
 --end)
 
 -- Custom configuration
-beautiful.useless_gap=10
+-- beautiful.useless_gap=10
 
 
 client.connect_signal("focus", function(c)
@@ -637,21 +621,30 @@ end)
 client.connect_signal("unfocus", function(c)
 	c.border_color = beautiful.border_normal
 end)
--- }}}
---
--- Autostart Apps
+
+-- Custom configuration
+beautiful.useless_gap=4  
+
+
+
+--Autostart applications
+awful.spawn.with_shell("picom --daemon")
+awful.util.spawn("nm-applet")
+-- awful.spawn.with_shell("sleep 1s && xss-lock i3lock")
+
 autorun = true
 autorunApps = {
-	"xbacklight",
+	-- "xbacklight",
 	-- "compton --config " .. filesystem.get_configuration_dir() .. "/configuration/compton.conf",
-	"picom",
-  "nm-applet --indicator", -- wifi
-	"pnmixer", -- shows an audiocontrol applet in systray when installed.
+	-- "picom",
+  	-- "nm-applet --indicator", -- wifi
+	-- "pnmixer", -- shows an audiocontrol applet in systray when installed.
 	"numlockx on", -- enable numlock
 	"/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 & eval $(gnome-keyring-daemon -s --components=pkcs11,secrets,ssh,gpg)", -- credential manager
 	"xfce4-power-manager", -- Power manager
 	-- "flameshot",
- "feh --bg-scale ~/.wallpapers/stargate.jpg",
+ 	-- "feh --bg-scale ~/.wallpapers/stargate.jpg",
+ 	"nitrogen --restore"
  }
 
 if autorun then
